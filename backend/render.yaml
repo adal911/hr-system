@@ -1,0 +1,44 @@
+# Render Blueprint — declares the backend service so deploys are reproducible.
+# Apply via: Render Dashboard → Blueprints → New Blueprint Instance → select repo.
+# Secrets are NOT set here. Add them via the Render dashboard after first deploy.
+
+services:
+  - type: web
+    name: hr-system-backend
+    runtime: python
+    plan: free                       # 512 MB RAM, spins down after 15 min idle
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn hr_system.wsgi --bind 0.0.0.0:$PORT --workers 2 --threads 2 --timeout 90
+    healthCheckPath: /api/auth/me/   # returns 401 (which is fine — proves Django is up)
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: DJANGO_DEBUG
+        value: "False"
+      - key: DJANGO_ALLOWED_HOSTS
+        sync: false                  # set in dashboard, e.g. hr-system-backend.onrender.com
+      - key: DJANGO_SECRET_KEY
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: JWT_EXPIRATION_HOURS
+        value: "24"
+      - key: MONGODB_URI
+        sync: false
+      - key: MONGODB_DB_NAME
+        value: hr_dataroom
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false                  # set to your Vercel URL
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash-lite

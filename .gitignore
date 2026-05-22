@@ -1,0 +1,69 @@
+# ─── Secrets (never commit) ──────────────────────────────────────────────────
+**/.env
+**/.env.local
+**/.env.*.local
+!**/.env.example
+
+# ─── Python / Django (backend) ───────────────────────────────────────────────
+backend/venv/
+backend/env/
+backend/.venv/
+backend/**/__pycache__/
+backend/**/*.pyc
+backend/**/*.pyo
+backend/**/*.pyd
+backend/db.sqlite3
+backend/db.sqlite3-journal
+backend/staticfiles/
+backend/media/
+backend/.pytest_cache/
+backend/.mypy_cache/
+backend/.ruff_cache/
+backend/htmlcov/
+backend/.coverage
+backend/coverage.xml
+backend/*.egg-info/
+
+# ─── Node / Next.js (frontend) ───────────────────────────────────────────────
+frontend/node_modules/
+frontend/.pnp
+frontend/.pnp.*
+frontend/.yarn/*
+!frontend/.yarn/patches
+!frontend/.yarn/plugins
+!frontend/.yarn/releases
+!frontend/.yarn/versions
+
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/coverage/
+
+# Next.js auto-generates this — should not be committed
+frontend/next-env.d.ts
+frontend/*.tsbuildinfo
+
+# Vercel
+frontend/.vercel/
+
+# Debug logs
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/.pnpm-debug.log*
+
+# ─── Editor / IDE ────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ─── OS ──────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ─── Misc ────────────────────────────────────────────────────────────────────
+*.pem
+*.log

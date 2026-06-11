@@ -61,16 +61,19 @@ JOB DESCRIPTION:
         }
 
 
-def match_jd_to_resumes(jd_text, top_k=10):
+def match_jd_to_resumes(jd_text, top_k=10, company_id=None):
     """
-    Parse a job description and rank all resumes by fit percentage.
+    Parse a job description and rank this company's resumes by fit percentage.
     """
     jd_requirements = _extract_jd_requirements(jd_text)
 
     db = get_db()
+    query = {"structured_data": {"$exists": True}}
+    if company_id is not None:
+        query["company_id"] = company_id
     documents = list(
         db.documents.find(
-            {"structured_data": {"$exists": True}},
+            query,
             {"_id": 1, "candidate_name": 1, "structured_data": 1},
         )
     )

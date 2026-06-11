@@ -12,12 +12,12 @@ def _get_client():
     return _client
 
 
-def get_ai_answer(question, candidate_name):
+def get_ai_answer(question, candidate_name, company_id=None):
     """
     Retrieve resume context for a specific candidate and generate
     an AI-suggested answer to an interview question.
     """
-    results = vector_search(question, top_k=5)
+    results = vector_search(question, top_k=5, company_id=company_id)
 
     # Filter to only this candidate's chunks
     candidate_chunks = [r for r in results if r["candidate_name"] == candidate_name]

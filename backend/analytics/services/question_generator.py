@@ -14,15 +14,18 @@ def _get_client():
     return _client
 
 
-def generate_interview_questions(document_id, job_role="", num_questions=10):
+def generate_interview_questions(document_id, job_role="", num_questions=10, company_id=None):
     """
     Generate tailored interview questions based on a candidate's resume
-    and an optional job role.
+    and an optional job role. Scoped to the caller's company.
     """
     db = get_db()
 
+    query = {"_id": ObjectId(document_id)}
+    if company_id is not None:
+        query["company_id"] = company_id
     doc = db.documents.find_one(
-        {"_id": ObjectId(document_id)},
+        query,
         {"candidate_name": 1, "structured_data": 1, "raw_text": 1},
     )
 

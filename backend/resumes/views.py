@@ -6,7 +6,9 @@ from rest_framework import status
 from bson import ObjectId
 from datetime import datetime, timezone
 from core.db import get_db
-from core.permissions import IsHR
+from core.permissions import IsHR, HasActiveLicense
+from core.tenant import company_filter, get_company_oid
+from billing.services.quota_service import check_resume_quota
 from .services.cloudinary_service import upload_file, delete_file
 from .services.text_extraction import extract_text
 from .services.chunking import chunk_text
@@ -15,7 +17,7 @@ from search.services.embedding_service import embed_and_store_chunks
 
 
 @api_view(["POST"])
-@permission_classes([IsHR])
+@permission_classes([IsHR, HasActiveLicense])
 @parser_classes([MultiPartParser])
 def upload_resume(request):
     file = request.FILES.get("file")
@@ -26,6 +28,12 @@ def upload_resume(request):
             {"error": "File and candidate_name are required"},
             status=status.HTTP_400_BAD_REQUEST,
         )
+
+    # Enforce per-plan monthly resume quota
+    company_oid = get_company_oid(request)
+    allowed, message = check_resume_quota(company_oid)
+    if not allowed:
+        return Response({"error": message}, status=status.HTTP_402_PAYMENT_REQUIRED)
 
     # Determine file type
     filename = file.name.lower()
@@ -57,6 +65,7 @@ def upload_resume(request):
     # Save document
     doc = {
         "candidate_name": candidate_name,
+        "company_id": company_oid,
         "file_url": cloud_result["url"],
         "file_type": file_type,
         "cloudinary_public_id": cloud_result["public_id"],
@@ -68,8 +77,8 @@ def upload_resume(request):
     result = db.documents.insert_one(doc)
     doc_id = result.inserted_id
 
-    # Save chunks with embeddings
-    embed_and_store_chunks(doc_id, chunks, candidate_name)
+    # Save chunks with embeddings (stamped with company_id for tenant-scoped search)
+    embed_and_store_chunks(doc_id, chunks, candidate_name, company_id=company_oid)
 
     return Response(
         {
@@ -88,10 +97,14 @@ def upload_resume(request):
 def list_resumes(request):
     db = get_db()
     documents = list(
-        db.documents.find({}, {"raw_text": 0}).sort("created_at", -1)
+        db.documents.find(company_filter(request), {"raw_text": 0}).sort(
+            "created_at", -1
+        )
     )
     for doc in documents:
         doc["_id"] = str(doc["_id"])
+        if doc.get("company_id"):
+            doc["company_id"] = str(doc["company_id"])
     return Response(documents)
 
 
@@ -101,7 +114,8 @@ def resume_detail(request, resume_id):
     db = get_db()
 
     try:
-        doc = db.documents.find_one({"_id": ObjectId(resume_id)})
+        query = {"_id": ObjectId(resume_id), **company_filter(request)}
+        doc = db.documents.find_one(query)
     except Exception:
         return Response({"error": "Invalid ID"}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -126,11 +140,13 @@ def resume_detail(request, resume_id):
 
 
 @api_view(["POST"])
-@permission_classes([IsHR])
+@permission_classes([IsHR, HasActiveLicense])
 def reextract_all(request):
-    """Re-extract structured data for all existing resumes."""
+    """Re-extract structured data for this company's resumes."""
     db = get_db()
-    documents = list(db.documents.find({}, {"_id": 1, "raw_text": 1}))
+    documents = list(
+        db.documents.find(company_filter(request), {"_id": 1, "raw_text": 1})
+    )
     count = 0
 
     for doc in documents:
@@ -152,7 +168,9 @@ def delete_resume(request, resume_id):
     db = get_db()
 
     try:
-        doc = db.documents.find_one({"_id": ObjectId(resume_id)})
+        doc = db.documents.find_one(
+            {"_id": ObjectId(resume_id), **company_filter(request)}
+        )
     except Exception:
         return Response({"error": "Invalid ID"}, status=status.HTTP_400_BAD_REQUEST)
 

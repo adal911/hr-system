@@ -13,6 +13,7 @@ from billing.services.license_service import (
     get_company_license,
     license_state,
 )
+from billing.services.quota_service import check_user_quota
 from .authentication import generate_token
 
 
@@ -204,6 +205,13 @@ def create_user(request):
         )
 
     company_id = getattr(request.user, "company_id", None)
+
+    # Enforce per-plan user quota
+    company_oid = ObjectId(company_id) if company_id else None
+    allowed, message = check_user_quota(company_oid)
+    if not allowed:
+        return Response({"error": message}, status=status.HTTP_402_PAYMENT_REQUIRED)
+
     user_doc = {
         "username": username,
         "password": generate_password_hash(password),

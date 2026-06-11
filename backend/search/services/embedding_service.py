@@ -22,8 +22,12 @@ def generate_embedding(text):
     return result.embeddings[0].values
 
 
-def embed_and_store_chunks(document_id, chunks, candidate_name):
-    """Generate embeddings for chunks and store them in MongoDB."""
+def embed_and_store_chunks(document_id, chunks, candidate_name, company_id=None):
+    """Generate embeddings for chunks and store them in MongoDB.
+
+    company_id is stamped on every chunk so vector search can be scoped per
+    tenant (see vector_search's `company_id` filter).
+    """
     db = get_db()
     chunk_docs = []
 
@@ -32,6 +36,7 @@ def embed_and_store_chunks(document_id, chunks, candidate_name):
         chunk_docs.append(
             {
                 "document_id": document_id,
+                "company_id": company_id,
                 "chunk_index": i,
                 "text": chunk_text,
                 "candidate_name": candidate_name,
@@ -45,13 +50,17 @@ def embed_and_store_chunks(document_id, chunks, candidate_name):
     return len(chunk_docs)
 
 
-def vector_search(query, top_k=5, document_id=None):
+def vector_search(query, top_k=5, document_id=None, company_id=None):
     """Search chunks using MongoDB Atlas Vector Search.
 
     Args:
         query: Search query text
         top_k: Number of results to return
         document_id: Optional ObjectId or string to filter chunks by document
+        company_id: Optional ObjectId or string to scope chunks to one tenant
+
+    NOTE: For the company_id / document_id filters to work, the Atlas vector
+    index must declare them as filter fields. See the index JSON in the README.
     """
     db = get_db()
 
@@ -67,13 +76,21 @@ def vector_search(query, top_k=5, document_id=None):
         }
     }
 
-    # Filter by document_id if provided
+    # Build a (possibly compound) filter for document and/or company scoping.
+    filters = []
     if document_id:
         if isinstance(document_id, str):
             document_id = ObjectId(document_id)
-        vector_search_stage["$vectorSearch"]["filter"] = {
-            "document_id": document_id
-        }
+        filters.append({"document_id": document_id})
+    if company_id:
+        if isinstance(company_id, str):
+            company_id = ObjectId(company_id)
+        filters.append({"company_id": company_id})
+
+    if len(filters) == 1:
+        vector_search_stage["$vectorSearch"]["filter"] = filters[0]
+    elif len(filters) > 1:
+        vector_search_stage["$vectorSearch"]["filter"] = {"$and": filters}
 
     pipeline = [
         vector_search_stage,

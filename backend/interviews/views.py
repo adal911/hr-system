@@ -6,8 +6,19 @@ from rest_framework import status
 from bson import ObjectId
 from datetime import datetime, timezone
 from core.db import get_db
-from core.permissions import IsHR
+from core.permissions import IsHR, HasActiveLicense
+from core.tenant import company_filter, get_company_oid
+from billing.services.license_service import get_company_license, license_state
 from .services.interview_service import get_ai_answer, generate_summary
+
+
+def _has_active_license(request):
+    """Inline license check for the POST branch of combined GET/POST views."""
+    company_oid = get_company_oid(request)
+    if not company_oid:
+        return True  # legacy user, no enforcement
+    state = license_state(get_company_license(company_oid))
+    return bool(state.get("is_active"))
 
 
 @api_view(["GET", "POST"])
@@ -17,7 +28,9 @@ def interview_list(request):
 
     if request.method == "GET":
         interviews = list(
-            db.interviews.find({}, {"questions": 0}).sort("created_at", -1)
+            db.interviews.find(company_filter(request), {"questions": 0}).sort(
+                "created_at", -1
+            )
         )
         for i in interviews:
             i["_id"] = str(i["_id"])
@@ -32,6 +45,13 @@ def interview_list(request):
             status=status.HTTP_403_FORBIDDEN,
         )
 
+    # License gate: creating interviews requires an active plan/trial
+    if not _has_active_license(request):
+        return Response(
+            {"error": "Your trial or subscription has ended. Please upgrade to continue."},
+            status=status.HTTP_402_PAYMENT_REQUIRED,
+        )
+
     candidate_name = request.data.get("candidate_name", "").strip()
     document_id = request.data.get("document_id", "").strip()
 
@@ -43,6 +63,7 @@ def interview_list(request):
 
     doc = {
         "candidate_name": candidate_name,
+        "company_id": get_company_oid(request),
         "document_id": ObjectId(document_id) if document_id else None,
         "interviewer": request.user.username,
         "status": "in_progress",
@@ -69,7 +90,9 @@ def interview_detail(request, interview_id):
     db = get_db()
 
     try:
-        interview = db.interviews.find_one({"_id": ObjectId(interview_id)})
+        interview = db.interviews.find_one(
+            {"_id": ObjectId(interview_id), **company_filter(request)}
+        )
     except Exception:
         return Response(
             {"error": "Invalid ID"}, status=status.HTTP_400_BAD_REQUEST
@@ -97,12 +120,14 @@ def interview_detail(request, interview_id):
 
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, HasActiveLicense])
 def add_question(request, interview_id):
     db = get_db()
 
     try:
-        interview = db.interviews.find_one({"_id": ObjectId(interview_id)})
+        interview = db.interviews.find_one(
+            {"_id": ObjectId(interview_id), **company_filter(request)}
+        )
     except Exception:
         return Response(
             {"error": "Invalid ID"}, status=status.HTTP_400_BAD_REQUEST
@@ -120,8 +145,10 @@ def add_question(request, interview_id):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    # Generate AI-suggested answer from resume context
-    ai_answer = get_ai_answer(question_text, interview["candidate_name"])
+    # Generate AI-suggested answer from resume context (scoped to this tenant)
+    ai_answer = get_ai_answer(
+        question_text, interview["candidate_name"], company_id=get_company_oid(request)
+    )
 
     question = {
         "id": str(uuid.uuid4()),
@@ -148,7 +175,9 @@ def save_answer(request, interview_id):
     db = get_db()
 
     try:
-        interview = db.interviews.find_one({"_id": ObjectId(interview_id)})
+        interview = db.interviews.find_one(
+            {"_id": ObjectId(interview_id), **company_filter(request)}
+        )
     except Exception:
         return Response(
             {"error": "Invalid ID"}, status=status.HTTP_400_BAD_REQUEST
@@ -194,12 +223,14 @@ def save_answer(request, interview_id):
 
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, HasActiveLicense])
 def generate_interview_summary(request, interview_id):
     db = get_db()
 
     try:
-        interview = db.interviews.find_one({"_id": ObjectId(interview_id)})
+        interview = db.interviews.find_one(
+            {"_id": ObjectId(interview_id), **company_filter(request)}
+        )
     except Exception:
         return Response(
             {"error": "Invalid ID"}, status=status.HTTP_400_BAD_REQUEST

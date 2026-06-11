@@ -4,7 +4,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from core.db import get_db
-from core.permissions import IsHR
+from core.permissions import IsHR, HasActiveLicense
+from core.tenant import get_company_oid
 from bson import ObjectId
 from .services.embedding_service import vector_search, rebuild_embeddings
 from .services.keyword_search import keyword_search, STOP_WORDS
@@ -16,14 +17,20 @@ def _extract_meaningful_terms(query):
     return [w for w in words if w not in STOP_WORDS and len(w) > 1]
 
 
-def _validate_vector_result(doc_id, query_terms):
+def _validate_vector_result(doc_id, query_terms, company_oid=None):
     """
     Check if a vector-only result actually contains any of the query terms
     in its structured data. Returns (is_valid, score_penalty, structured_data).
+
+    company_oid ensures a vector hit from another tenant is rejected even if the
+    vector index filter were ever bypassed (defense in depth).
     """
     db = get_db()
+    query = {"_id": ObjectId(doc_id)}
+    if company_oid is not None:
+        query["company_id"] = company_oid
     doc = db.documents.find_one(
-        {"_id": ObjectId(doc_id)},
+        query,
         {"candidate_name": 1, "structured_data": 1},
     )
     if not doc:
@@ -85,20 +92,22 @@ def _is_natural_language_query(query):
     return any(indicator in query_lower for indicator in nl_indicators)
 
 
-def _hybrid_search(query, top_k=10):
+def _hybrid_search(query, top_k=10, company_oid=None):
     """
     Combine keyword search and vector search for best results.
     Keyword search handles exact matching; vector search adds semantic results.
     Vector-only results are validated against structured data to prevent
     irrelevant resumes from appearing.
+
+    company_oid scopes every branch of the search to a single tenant.
     """
-    keyword_results = keyword_search(query, top_k=top_k)
+    keyword_results = keyword_search(query, top_k=top_k, company_id=company_oid)
     is_semantic = _is_natural_language_query(query)
     query_terms = _extract_meaningful_terms(query)
 
     if is_semantic:
         try:
-            vector_results = vector_search(query, top_k=top_k)
+            vector_results = vector_search(query, top_k=top_k, company_id=company_oid)
         except Exception:
             vector_results = []
 
@@ -125,7 +134,7 @@ def _hybrid_search(query, top_k=10):
             else:
                 # Vector-only result — validate against structured data
                 is_valid, coverage, structured, candidate_name = _validate_vector_result(
-                    doc_id, query_terms
+                    doc_id, query_terms, company_oid
                 )
 
                 if not is_valid:
@@ -166,7 +175,7 @@ def _hybrid_search(query, top_k=10):
     # Keyword-only queries — fall back to vector if no keyword results
     if not keyword_results:
         try:
-            vector_results = vector_search(query, top_k=top_k)
+            vector_results = vector_search(query, top_k=top_k, company_id=company_oid)
         except Exception:
             return [], "keyword"
 
@@ -175,7 +184,7 @@ def _hybrid_search(query, top_k=10):
             doc_id = r["document_id"]
             if doc_id not in seen or r["score"] > seen[doc_id]["score"]:
                 is_valid, coverage, structured, candidate_name = _validate_vector_result(
-                    doc_id, query_terms
+                    doc_id, query_terms, company_oid
                 )
 
                 if not is_valid:
@@ -213,7 +222,7 @@ def _hybrid_search(query, top_k=10):
 
 
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, HasActiveLicense])
 def search_resumes(request):
     query = request.query_params.get("q", "").strip()
     top_k = int(request.query_params.get("top_k", "5"))
@@ -226,7 +235,9 @@ def search_resumes(request):
 
     top_k = min(max(top_k, 1), 20)
 
-    results, search_type = _hybrid_search(query, top_k=top_k)
+    results, search_type = _hybrid_search(
+        query, top_k=top_k, company_oid=get_company_oid(request)
+    )
 
     return Response(
         {

@@ -5,6 +5,8 @@ from rest_framework import status
 from datetime import datetime, timezone
 from bson import ObjectId
 from core.db import get_db
+from core.permissions import HasActiveLicense
+from core.tenant import company_filter, get_company_oid
 from .services.chatbot_service import get_response
 
 
@@ -37,10 +39,10 @@ def sessions(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    # Validate document exists
+    # Validate document exists AND belongs to this company
     try:
         doc = db.documents.find_one(
-            {"_id": ObjectId(document_id)},
+            {"_id": ObjectId(document_id), **company_filter(request)},
             {"candidate_name": 1},
         )
     except Exception:
@@ -62,6 +64,7 @@ def sessions(request):
     now = datetime.now(timezone.utc)
     session = {
         "user_id": request.user.id,
+        "company_id": get_company_oid(request),
         "username": request.user.username,
         "document_id": ObjectId(document_id),
         "candidate_name": candidate_name,
@@ -123,7 +126,7 @@ def session_detail(request, session_id):
 
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, HasActiveLicense])
 def send_message(request, session_id):
     query = request.data.get("query", "").strip()
 

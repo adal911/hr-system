@@ -236,7 +236,7 @@ def _search_summary(query_tokens, summary):
     return score
 
 
-def keyword_search(query, top_k=10):
+def keyword_search(query, top_k=10, company_id=None):
     """
     Search resumes using keyword matching on ALL structured data fields.
     Searches across: skills, experience, education, projects, and summary.
@@ -246,6 +246,8 @@ def keyword_search(query, top_k=10):
     - Score is based on what fraction of query tokens actually matched.
     - Candidates with zero meaningful matches are excluded.
     - Skills matches are weighted highest.
+
+    company_id scopes the search to a single tenant when provided.
     """
     db = get_db()
     query_tokens = _tokenize(query)
@@ -253,9 +255,13 @@ def keyword_search(query, top_k=10):
     if not query_tokens:
         return []
 
+    mongo_query = {"structured_data": {"$exists": True}}
+    if company_id is not None:
+        mongo_query["company_id"] = company_id
+
     documents = list(
         db.documents.find(
-            {"structured_data": {"$exists": True}},
+            mongo_query,
             {
                 "_id": 1,
                 "candidate_name": 1,

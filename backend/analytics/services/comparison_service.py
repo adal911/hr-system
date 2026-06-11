@@ -2,17 +2,22 @@ from bson import ObjectId
 from core.db import get_db
 
 
-def compare_resumes(document_ids):
+def compare_resumes(document_ids, company_id=None):
     """
     Compare 2+ resumes side by side.
     Returns structured comparison with skill overlaps and gaps.
+
+    company_id scopes the lookup so a tenant can only compare its own resumes.
     """
     db = get_db()
 
     object_ids = [ObjectId(did) for did in document_ids]
+    query = {"_id": {"$in": object_ids}}
+    if company_id is not None:
+        query["company_id"] = company_id
     documents = list(
         db.documents.find(
-            {"_id": {"$in": object_ids}},
+            query,
             {"candidate_name": 1, "structured_data": 1},
         )
     )

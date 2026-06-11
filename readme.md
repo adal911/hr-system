@@ -14,7 +14,7 @@ Resume-grounded chatbot responses
 
 Structured interview evaluation
 
-The system combines classical NLP (TF-IDF) with modern LLM-based Retrieval-Augmented Generation (RAG) to deliver deterministic, resume-grounded insights.
+The system combines classical NLP (Gemini-001) with modern LLM-based Retrieval-Augmented Generation (RAG) to deliver deterministic, resume-grounded insights.
 
 🏗️ System Architecture
 Frontend (UI Layer)

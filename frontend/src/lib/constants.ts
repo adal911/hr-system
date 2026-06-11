@@ -23,4 +23,5 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Chatbot", href: "/chatbot", roles: ["admin", "hr", "interviewer"], group: "Intelligence" },
 
   { label: "Users", href: "/admin/users", roles: ["admin"], group: "Admin" },
+  { label: "Billing", href: "/settings/billing", roles: ["admin"], group: "Admin" },
 ];

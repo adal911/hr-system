@@ -1,12 +1,17 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const publicPaths = ["/login"];
+// Routes that don't require authentication.
+const publicPaths = ["/", "/login", "/signup", "/pricing"];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (publicPaths.some((p) => pathname.startsWith(p))) {
+  // Exact match on "/", prefix match on the others.
+  const isPublic = publicPaths.some((p) =>
+    p === "/" ? pathname === "/" : pathname.startsWith(p)
+  );
+  if (isPublic) {
     return NextResponse.next();
   }
 

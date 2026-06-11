@@ -3,6 +3,7 @@
 import { useAuth } from "@/context/auth-context";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { Header } from "@/components/layout/header";
+import { TrialBanner } from "@/components/dashboard/trial-banner";
 import { Loader2 } from "lucide-react";
 
 export default function DashboardLayout({
@@ -29,6 +30,7 @@ export default function DashboardLayout({
       <div className="relative flex flex-1 flex-col overflow-hidden">
         {/* Decorative top accent */}
         <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-64 bg-linear-to-b from-primary/4 via-transparent to-transparent" />
+        <TrialBanner />
         <Header />
         <main className="flex-1 overflow-auto">
           <div className="mx-auto w-full max-w-7xl px-6 py-8">{children}</div>

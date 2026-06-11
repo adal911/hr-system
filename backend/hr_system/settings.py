@@ -28,6 +28,7 @@ INSTALLED_APPS = [
     # Project apps
     "core",
     "accounts",
+    "billing",
     "resumes",
     "search",
     "chatbot",
@@ -67,6 +68,7 @@ DATABASES = {}
 MIGRATION_MODULES = {
     "core": None,
     "accounts": None,
+    "billing": None,
     "resumes": None,
     "search": None,
     "chatbot": None,
@@ -104,3 +106,8 @@ REST_FRAMEWORK = {
 JWT_SECRET = os.environ.get("JWT_SECRET", "change-me-in-production")
 JWT_ALGORITHM = os.environ.get("JWT_ALGORITHM", "HS256")
 JWT_EXPIRATION_HOURS = int(os.environ.get("JWT_EXPIRATION_HOURS", "24"))
+
+# Stripe
+STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "")
+STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000").rstrip("/")

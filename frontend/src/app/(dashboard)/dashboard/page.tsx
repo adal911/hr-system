@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { toast } from "sonner";
 import { useAuth } from "@/context/auth-context";
 import { api } from "@/lib/api";
 import {
@@ -69,9 +70,31 @@ interface DashboardResponse {
 const PIE_COLORS = ["oklch(0.7 0.16 60)", "oklch(0.68 0.17 162)"];
 
 export default function DashboardPage() {
-  const { user, token } = useAuth();
+  const { user, token, refreshLicense } = useAuth();
   const [data, setData] = useState<DashboardResponse | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Handle the post-checkout redirect from Stripe
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("upgrade") === "success") {
+      toast.success("Subscription activated. Welcome to the upgraded plan!", {
+        duration: 6000,
+      });
+      // Webhook may take a beat to fire; poll license a few times.
+      const tick = () => refreshLicense();
+      tick();
+      const t1 = setTimeout(tick, 2000);
+      const t2 = setTimeout(tick, 6000);
+      // Clean the URL so a refresh doesn't re-toast
+      window.history.replaceState({}, "", "/dashboard");
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+      };
+    }
+  }, [refreshLicense]);
 
   useEffect(() => {
     const fetchStats = async () => {

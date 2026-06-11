@@ -14,6 +14,8 @@ class MongoUser:
         self.id = str(user_doc["_id"])
         self.username = user_doc["username"]
         self.role = user_doc["role"]
+        company_id = user_doc.get("company_id")
+        self.company_id = str(company_id) if company_id else None
         self.is_authenticated = True
 
     def __str__(self):

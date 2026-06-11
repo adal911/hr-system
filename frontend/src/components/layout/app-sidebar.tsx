@@ -15,6 +15,7 @@ import {
   GitCompare,
   Target,
   Sparkles,
+  CreditCard,
 } from "lucide-react";
 
 const iconMap: Record<string, React.ElementType> = {
@@ -26,6 +27,7 @@ const iconMap: Record<string, React.ElementType> = {
   "/chatbot": MessageSquare,
   "/interviews": ClipboardList,
   "/admin/users": Users,
+  "/settings/billing": CreditCard,
 };
 
 export function AppSidebar() {

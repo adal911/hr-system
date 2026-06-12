@@ -16,6 +16,7 @@ import {
   Target,
   Sparkles,
   CreditCard,
+  Activity,
 } from "lucide-react";
 
 const iconMap: Record<string, React.ElementType> = {
@@ -26,6 +27,7 @@ const iconMap: Record<string, React.ElementType> = {
   "/jd-match": Target,
   "/chatbot": MessageSquare,
   "/interviews": ClipboardList,
+  "/admin/statistics": Activity,
   "/admin/users": Users,
   "/settings/billing": CreditCard,
 };

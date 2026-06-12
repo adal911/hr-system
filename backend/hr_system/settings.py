@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     "chatbot",
     "interviews",
     "analytics",
+    "monitoring",
 ]
 
 MIDDLEWARE = [
@@ -41,6 +42,7 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "monitoring.middleware.RequestLoggingMiddleware",
 ]
 
 ROOT_URLCONF = "hr_system.urls"
@@ -74,6 +76,7 @@ MIGRATION_MODULES = {
     "chatbot": None,
     "interviews": None,
     "analytics": None,
+    "monitoring": None,
 }
 
 LANGUAGE_CODE = "en-us"

@@ -83,7 +83,7 @@ def signup(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
-    token = generate_token(str(user_id))
+    token = generate_token(str(user_id), str(company["_id"]))
     state = license_state(license_doc)
 
     return Response(
@@ -123,7 +123,10 @@ def login(request):
             {"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED
         )
 
-    token = generate_token(str(user_doc["_id"]))
+    company_id = user_doc.get("company_id")
+    token = generate_token(
+        str(user_doc["_id"]), str(company_id) if company_id else None
+    )
 
     return Response(
         {

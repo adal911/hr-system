@@ -22,6 +22,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "JD Match", href: "/jd-match", roles: ["admin", "hr", "interviewer"], group: "Intelligence" },
   { label: "Chatbot", href: "/chatbot", roles: ["admin", "hr", "interviewer"], group: "Intelligence" },
 
+  { label: "Statistics", href: "/admin/statistics", roles: ["admin"], group: "Admin" },
   { label: "Users", href: "/admin/users", roles: ["admin"], group: "Admin" },
   { label: "Billing", href: "/settings/billing", roles: ["admin"], group: "Admin" },
 ];

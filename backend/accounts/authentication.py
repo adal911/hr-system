@@ -46,11 +46,15 @@ class MongoJWTAuthentication(BaseAuthentication):
         return (MongoUser(user_doc), token)
 
 
-def generate_token(user_id: str) -> str:
+def generate_token(user_id: str, company_id: str | None = None) -> str:
     payload = {
         "user_id": user_id,
         "exp": datetime.now(timezone.utc)
         + timedelta(hours=settings.JWT_EXPIRATION_HOURS),
         "iat": datetime.now(timezone.utc),
     }
+    # Embed company_id so request-logging middleware can scope traffic without
+    # an extra DB read per request.
+    if company_id:
+        payload["company_id"] = company_id
     return jwt.encode(payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)

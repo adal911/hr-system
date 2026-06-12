@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from core.db import get_db
 from core.permissions import IsHR, HasActiveLicense
 from core.tenant import company_filter, get_company_oid
+from core.serialization import clean_mongo
 from billing.services.quota_service import check_resume_quota
 from .services.cloudinary_service import upload_file, delete_file
 from .services.text_extraction import extract_text
@@ -122,21 +123,15 @@ def resume_detail(request, resume_id):
     if not doc:
         return Response({"error": "Resume not found"}, status=status.HTTP_404_NOT_FOUND)
 
-    doc["_id"] = str(doc["_id"])
-
     # Fetch chunks (exclude embedding vector)
     chunks = list(
         db.chunks.find(
             {"document_id": ObjectId(resume_id)}, {"embedding": 0}
         ).sort("chunk_index", 1)
     )
-    for chunk in chunks:
-        chunk["_id"] = str(chunk["_id"])
-        chunk["document_id"] = str(chunk["document_id"])
-
     doc["chunks"] = chunks
 
-    return Response(doc)
+    return Response(clean_mongo(doc))
 
 
 @api_view(["POST"])

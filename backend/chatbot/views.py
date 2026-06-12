@@ -7,6 +7,7 @@ from bson import ObjectId
 from core.db import get_db
 from core.permissions import HasActiveLicense
 from core.tenant import company_filter, get_company_oid
+from core.serialization import clean_mongo
 from .services.chatbot_service import get_response
 
 
@@ -24,10 +25,7 @@ def sessions(request):
             db.chat_sessions.find({"user_id": request.user.id})
             .sort("updated_at", -1)
         )
-        for s in user_sessions:
-            s["_id"] = str(s["_id"])
-            s["document_id"] = str(s["document_id"])
-        return Response(user_sessions)
+        return Response(clean_mongo(user_sessions))
 
     # POST - Create new session
     document_id = request.data.get("document_id", "").strip()
@@ -75,8 +73,7 @@ def sessions(request):
     result = db.chat_sessions.insert_one(session)
 
     session["_id"] = str(result.inserted_id)
-    session["document_id"] = document_id
-    return Response(session, status=status.HTTP_201_CREATED)
+    return Response(clean_mongo(session), status=status.HTTP_201_CREATED)
 
 
 @api_view(["GET", "DELETE"])
@@ -107,19 +104,12 @@ def session_detail(request, session_id):
         return Response({"message": "Session deleted"})
 
     # GET - Return session info + messages
-    session["_id"] = str(session["_id"])
-    session["document_id"] = str(session["document_id"])
-
     messages = list(
         db.chat_messages.find({"session_id": ObjectId(session_id)})
         .sort("created_at", 1)
     )
-    for m in messages:
-        m["_id"] = str(m["_id"])
-        m["session_id"] = str(m["session_id"])
-
     session["messages"] = messages
-    return Response(session)
+    return Response(clean_mongo(session))
 
 
 # ─── Chat Messages (within a session) ────────────────────────────────────────

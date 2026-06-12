@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from core.db import get_db
 from core.permissions import IsHR, HasActiveLicense
 from core.tenant import company_filter, get_company_oid
+from core.serialization import clean_mongo
 from billing.services.license_service import get_company_license, license_state
 from .services.interview_service import get_ai_answer, generate_summary
 
@@ -32,11 +33,7 @@ def interview_list(request):
                 "created_at", -1
             )
         )
-        for i in interviews:
-            i["_id"] = str(i["_id"])
-            if i.get("document_id"):
-                i["document_id"] = str(i["document_id"])
-        return Response(interviews)
+        return Response(clean_mongo(interviews))
 
     # POST — create interview (HR only)
     if request.user.role not in ("admin", "hr"):
@@ -113,10 +110,7 @@ def interview_detail(request, interview_id):
         return Response({"message": "Interview deleted"})
 
     # GET
-    interview["_id"] = str(interview["_id"])
-    if interview.get("document_id"):
-        interview["document_id"] = str(interview["document_id"])
-    return Response(interview)
+    return Response(clean_mongo(interview))
 
 
 @api_view(["POST"])
